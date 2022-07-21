@@ -74,4 +74,32 @@ public class UserController {
         userService.updateInformation(user);
         return ApiRestResponse.success();
     }
+
+    @PostMapping("/user/logout")
+    @ResponseBody
+    public ApiRestResponse logout(HttpSession session){
+        session.removeAttribute("imooc_mall_user");
+        return ApiRestResponse.success();
+    }
+
+    @PostMapping("/adminLogin")
+    @ResponseBody
+    public ApiRestResponse adminLogin(@RequestParam("userName") String userName, @RequestParam("password") String password, HttpSession session) throws ImoocMallException {
+        if(StringUtils.isEmpty(userName)){
+            return ApiRestResponse.error(ImoocMallExceptionEnum.NEED_USER_NAME);
+        }
+        if(StringUtils.isEmpty(password)){
+            return ApiRestResponse.error(ImoocMallExceptionEnum.NEED_PASSWORD);
+        }
+
+        User user=userService.login(userName,password);
+        if (userService.checkAdmin(user)) {
+            user.setPassword(null);
+            session.setAttribute("imooc_mall_user",user);
+            return ApiRestResponse.success(user);
+        }else{
+            return ApiRestResponse.error(ImoocMallExceptionEnum.NEED_ADMIN);
+        }
+
+    }
 }
