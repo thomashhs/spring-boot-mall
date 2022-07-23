@@ -2,6 +2,8 @@ package com.imooc.mall.model.dao;
 
 import com.imooc.mall.model.pojo.Category;
 
+import java.util.List;
+
 public interface CategoryMapper {
     int deleteByPrimaryKey(Integer id);
 
@@ -16,4 +18,8 @@ public interface CategoryMapper {
     int updateByPrimaryKey(Category record);
 
     Category selectByName(String name);
+
+    List<Category> selectList();
+
+    List<Category> selectByParentId(Integer parentId);
 }
