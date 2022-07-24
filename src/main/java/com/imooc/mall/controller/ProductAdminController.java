@@ -1,13 +1,12 @@
 package com.imooc.mall.controller;
 
+import com.github.pagehelper.PageInfo;
 import com.imooc.mall.common.ApiRestResponse;
 import com.imooc.mall.model.request.ProductAddReq;
 import com.imooc.mall.model.request.ProductUpdateReq;
 import com.imooc.mall.service.ProductService;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
@@ -37,5 +36,19 @@ public class ProductAdminController {
     public ApiRestResponse deleteProduct(Integer id){
         productService.delete(id);
         return ApiRestResponse.success();
+    }
+
+    @PostMapping("/admin/product/batchUpdateSellStatus")
+    @ResponseBody
+    public ApiRestResponse batchUpdateSellStatus(@RequestParam Integer[] ids,@RequestParam Integer sellStatus){
+        productService.batchUpdateSellStatus(ids,sellStatus);
+        return ApiRestResponse.success();
+    }
+
+    @GetMapping("/admin/product/list")
+    @ResponseBody
+    public ApiRestResponse selectListForAdmin(@RequestParam Integer pageNum,@RequestParam Integer pageSize){
+        PageInfo pageInfo=productService.selectList(pageNum,pageSize);
+        return ApiRestResponse.success(pageInfo);
     }
 }

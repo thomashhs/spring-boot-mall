@@ -1,8 +1,10 @@
-package com.imooc.mall.model.pojo;
+package com.imooc.mall.model.vo;
 
-import java.util.Date;
+/**
+ * 描述：     CartVO，给前端展示用
+ */
+public class CartVO {
 
-public class Cart {
     private Integer id;
 
     private Integer productId;
@@ -13,9 +15,13 @@ public class Cart {
 
     private Integer selected;
 
-    private Date createTime;
+    private Integer price;
 
-    private Date updateTime;
+    private Integer totalPrice;
+
+    private String productName;
+
+    private String productImage;
 
     public Integer getId() {
         return id;
@@ -57,32 +63,35 @@ public class Cart {
         this.selected = selected;
     }
 
-    public Date getCreateTime() {
-        return createTime;
+    public Integer getPrice() {
+        return price;
     }
 
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
+    public void setPrice(Integer price) {
+        this.price = price;
     }
 
-    public Date getUpdateTime() {
-        return updateTime;
+    public Integer getTotalPrice() {
+        return totalPrice;
     }
 
-    public void setUpdateTime(Date updateTime) {
-        this.updateTime = updateTime;
+    public void setTotalPrice(Integer totalPrice) {
+        this.totalPrice = totalPrice;
     }
 
-    @Override
-    public String toString() {
-        return "Cart{" +
-                "id=" + id +
-                ", productId=" + productId +
-                ", userId=" + userId +
-                ", quantity=" + quantity +
-                ", selected=" + selected +
-                ", createTime=" + createTime +
-                ", updateTime=" + updateTime +
-                '}';
+    public String getProductName() {
+        return productName;
+    }
+
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
+
+    public String getProductImage() {
+        return productImage;
+    }
+
+    public void setProductImage(String productImage) {
+        this.productImage = productImage;
     }
 }
