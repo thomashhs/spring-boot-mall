@@ -1,5 +1,8 @@
 package com.imooc.mall.service;
 
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.imooc.mall.common.Constant;
 import com.imooc.mall.exception.ImoocMallException;
 import com.imooc.mall.exception.ImoocMallExceptionEnum;
 import com.imooc.mall.filter.UserFilter;
@@ -10,19 +13,25 @@ import com.imooc.mall.model.dao.ProductMapper;
 import com.imooc.mall.model.pojo.Order;
 import com.imooc.mall.model.pojo.OrderItem;
 import com.imooc.mall.model.pojo.Product;
+import com.imooc.mall.model.pojo.User;
 import com.imooc.mall.model.request.CreateOrderReq;
 import com.imooc.mall.model.vo.CartVO;
+import com.imooc.mall.model.vo.OrderItemVO;
+import com.imooc.mall.model.vo.OrderVO;
 import com.imooc.mall.util.OrderCodeFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 @Service
-public class OrderServiceImpl {
+public class OrderServiceImpl implements OrderService{
 
     @Resource
     private CartService cartService;
@@ -35,6 +44,8 @@ public class OrderServiceImpl {
     @Resource
     private OrderItemMapper orderItemMapper;
 
+    @Transactional(rollbackFor = Exception.class)
+    @Override
     public String create(CreateOrderReq createOrderReq){
         //拿到用户ID
         Integer userId=UserFilter.currentUser.getId();
@@ -92,6 +103,7 @@ public class OrderServiceImpl {
         orderMapper.insertSelective(order);
         //循环保存每个商品到order_item表
         for(OrderItem orderItem:orderItemList){
+            orderItem.setOrderNo(order.getOrderNo());
             orderItemMapper.insertSelective(orderItem);
         }
         //把结果返回
@@ -139,4 +151,75 @@ public class OrderServiceImpl {
         }
         return orderItemList;
     }
+
+    @Override
+    public OrderVO detail(String orderNo){
+        Order order=orderMapper.selectByOrderNo(orderNo);
+        if(order==null){
+            throw new ImoocMallException(ImoocMallExceptionEnum.NO_ORDER);
+        }
+        Integer userId=UserFilter.currentUser.getId();
+        if(userId!=order.getUserId()){
+            throw new ImoocMallException(ImoocMallExceptionEnum.NOT_YOUR_ORDER);
+        }
+
+        OrderVO orderVO=getOrderVO(order);
+        return orderVO;
+    }
+
+    @Override
+    public PageInfo listForCustomer(Integer pageNum, Integer pageSize){
+        PageHelper.startPage(pageNum,pageSize);
+        User user=UserFilter.currentUser;
+        List<Order> orderList=orderMapper.selectByUserId(user.getId());
+        List<OrderVO> orderVOList=getOrderVOList(orderList);
+        PageInfo pageInfo=new PageInfo(orderVOList);
+        pageInfo.setList(orderVOList);
+        return pageInfo;
+    }
+
+    @Override
+    public void cancel(String orderNo){
+        Order order=orderMapper.selectByOrderNo(orderNo);
+        if(order==null){
+            throw new ImoocMallException(ImoocMallExceptionEnum.NO_ORDER);
+        }
+        Integer userId=UserFilter.currentUser.getId();
+        if(userId!=order.getUserId()){
+            throw new ImoocMallException(ImoocMallExceptionEnum.NOT_YOUR_ORDER);
+        }
+        if(order.getOrderStatus().equals(Constant.OrderStatusEnum.NOT_PAID.getCode())){
+            order.setOrderStatus(Constant.OrderStatusEnum.CANCELED.getCode());
+            order.setEndTime(new Date());
+            orderMapper.updateByPrimaryKeySelective(order);
+        }else{
+            throw new ImoocMallException(ImoocMallExceptionEnum.WRONG_ORDER_STATUS);
+        }
+    }
+
+    private List<OrderVO> getOrderVOList(List<Order> orderList) {
+        List<OrderVO> orderVOList=new ArrayList<>();
+        for(Order order:orderList){
+            OrderVO orderVO=new OrderVO();
+            orderVO=getOrderVO(order);
+            orderVOList.add(orderVO);
+        }
+        return orderVOList;
+    }
+
+    private OrderVO getOrderVO(Order order) {
+        OrderVO orderVO=new OrderVO();
+        BeanUtils.copyProperties(order,orderVO);
+        List<OrderItemVO> orderItemVOList=new ArrayList<>();
+        List<OrderItem> orderItemList= orderItemMapper.selectByOrderNo(order.getOrderNo());
+        for(OrderItem orderItem:orderItemList){
+            OrderItemVO orderItemVO=new OrderItemVO();
+            BeanUtils.copyProperties(orderItem,orderItemVO);
+            orderItemVOList.add(orderItemVO);
+        }
+        orderVO.setOrderItemVOList(orderItemVOList);
+        orderVO.setOrderStatusName(Constant.OrderStatusEnum.codeOf(order.getOrderStatus()).getValue());
+        return orderVO;
+    }
+
 }
