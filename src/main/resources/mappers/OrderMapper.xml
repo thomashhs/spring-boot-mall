@@ -224,4 +224,9 @@
     from imooc_mall_order
     where user_id = #{userId,jdbcType=INTEGER}
   </select>
+    <select id="selectForAdmin" resultMap="BaseResultMap">
+      select
+      <include refid="Base_Column_List" />
+      from imooc_mall_order
+    </select>
 </mapper>

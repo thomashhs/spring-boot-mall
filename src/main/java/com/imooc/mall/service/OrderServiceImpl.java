@@ -2,6 +2,7 @@ package com.imooc.mall.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.google.zxing.WriterException;
 import com.imooc.mall.common.Constant;
 import com.imooc.mall.exception.ImoocMallException;
 import com.imooc.mall.exception.ImoocMallExceptionEnum;
@@ -19,12 +20,18 @@ import com.imooc.mall.model.vo.CartVO;
 import com.imooc.mall.model.vo.OrderItemVO;
 import com.imooc.mall.model.vo.OrderVO;
 import com.imooc.mall.util.OrderCodeFactory;
+import com.imooc.mall.util.QRCodeGenerator;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.context.support.HttpRequestHandlerServlet;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -43,6 +50,8 @@ public class OrderServiceImpl implements OrderService{
     private OrderMapper orderMapper;
     @Resource
     private OrderItemMapper orderItemMapper;
+    @Resource
+    private UserService userService;
 
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -197,6 +206,49 @@ public class OrderServiceImpl implements OrderService{
         }
     }
 
+    @Override
+    public String qrcode(String orderNo){
+        String filePath="C:\\Users\\34587\\IdeaProjects\\imooc-mall\\src\\main\\resources\\png\\";
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder
+                .getRequestAttributes();
+        HttpServletRequest request = attributes.getRequest();
+        String payURL="http://127.0.0.1:"+request.getLocalPort()+"/pay?orderNo="+orderNo;
+        try {
+            QRCodeGenerator.generateQRCodeImage(payURL,350,350,filePath+orderNo+".png");
+        } catch (WriterException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        String pngAddress="http://127.0.0.1:"+request.getLocalPort()+"/images/" + orderNo + ".png";
+        return pngAddress;
+    }
+
+    @Override
+    public PageInfo listForAdmin(Integer pageNum, Integer pageSize){
+        PageHelper.startPage(pageNum,pageSize);
+        List<Order> orderList=orderMapper.selectForAdmin();
+        List<OrderVO> orderVOList=getOrderVOList(orderList);
+        PageInfo pageInfo=new PageInfo(orderVOList);
+        pageInfo.setList(orderVOList);
+        return pageInfo;
+    }
+
+    @Override
+    public void pay(String orderNo){
+        Order order=orderMapper.selectByOrderNo(orderNo);
+        if(order==null){
+            throw new ImoocMallException(ImoocMallExceptionEnum.NO_ORDER);
+        }
+        if(order.getOrderStatus()== Constant.OrderStatusEnum.NOT_PAID.getCode()){
+            order.setOrderStatus(Constant.OrderStatusEnum.PAID.getCode());
+            order.setPayTime(new Date());
+            orderMapper.updateByPrimaryKeySelective(order);
+        }else{
+            throw new ImoocMallException(ImoocMallExceptionEnum.WRONG_ORDER_STATUS);
+        }
+    }
+
     private List<OrderVO> getOrderVOList(List<Order> orderList) {
         List<OrderVO> orderVOList=new ArrayList<>();
         for(Order order:orderList){
@@ -220,6 +272,44 @@ public class OrderServiceImpl implements OrderService{
         orderVO.setOrderItemVOList(orderItemVOList);
         orderVO.setOrderStatusName(Constant.OrderStatusEnum.codeOf(order.getOrderStatus()).getValue());
         return orderVO;
+    }
+
+    @Override
+    public void deliver(String orderNo){
+        Order order=orderMapper.selectByOrderNo(orderNo);
+        if(order==null){
+            throw new ImoocMallException(ImoocMallExceptionEnum.NO_ORDER);
+        }
+        if(order.getOrderStatus()== Constant.OrderStatusEnum.PAID.getCode()){
+            order.setOrderStatus(Constant.OrderStatusEnum.DELIVERED.getCode());
+            order.setDeliveryTime(new Date());
+            orderMapper.updateByPrimaryKeySelective(order);
+        }else{
+            throw new ImoocMallException(ImoocMallExceptionEnum.WRONG_ORDER_STATUS);
+        }
+    }
+
+    @Override
+    public void finish(String orderNo){
+        Order order=orderMapper.selectByOrderNo(orderNo);
+        if(order==null){
+            throw new ImoocMallException(ImoocMallExceptionEnum.NO_ORDER);
+        }
+        User user=UserFilter.currentUser;
+
+        System.out.println("user:"+user);
+
+        if(!userService.checkAdmin(user) && !order.getUserId().equals(user.getId())){
+            throw new ImoocMallException(ImoocMallExceptionEnum.NOT_YOUR_ORDER);
+        }
+        System.out.println("order:"+order);
+        if(order.getOrderStatus()== Constant.OrderStatusEnum.DELIVERED.getCode()){
+            order.setOrderStatus(Constant.OrderStatusEnum.FINISHED.getCode());
+            order.setEndTime(new Date());
+            orderMapper.updateByPrimaryKeySelective(order);
+        }else{
+            throw new ImoocMallException(ImoocMallExceptionEnum.WRONG_ORDER_STATUS);
+        }
     }
 
 }
